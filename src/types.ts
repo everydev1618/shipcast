@@ -1,4 +1,4 @@
-/** Show-level metadata. Lives in podpush.json and drives the RSS <channel>. */
+/** Show-level metadata. Lives in shipcast.json and drives the RSS <channel>. */
 export interface ShowConfig {
   title: string;
   description: string;
@@ -14,6 +14,8 @@ export interface ShowConfig {
   imageUrl: string;
   explicit: boolean;
   copyright?: string;
+  /** When set, episode enclosures point at this analytics Worker base URL. */
+  analyticsBaseUrl?: string;
 }
 
 /** A single published episode. The manifest is an array of these. */

@@ -3,6 +3,7 @@ import type { ShowConfig, Episode, Manifest } from './types.ts';
 import { emptyManifest, mintEpisodeId, parseManifest } from './manifest.ts';
 import { buildPodcastRss } from './rss.ts';
 import { guessAudioType, type TranscodeResult } from './audio.ts';
+import { enclosureUrl } from './analytics.ts';
 import {
   publicUrl,
   uploadFile,
@@ -96,12 +97,18 @@ export async function publishEpisode(
   const key = audioKey(id);
   const uploaded = await storage.uploadFile(outPath, key, guessAudioType(outPath));
 
+  // Audio always lives in R2; the feed enclosure points at the analytics Worker
+  // when one is configured, so downloads get counted before the R2 redirect.
+  const publicAudioUrl = show.analyticsBaseUrl
+    ? enclosureUrl(show.analyticsBaseUrl, id)
+    : uploaded.url;
+
   const episode: Episode = {
     id,
-    guid: `podpush:${id}`,
+    guid: `shipcast:${id}`,
     title: input.title,
     description: input.description ?? '',
-    audioUrl: uploaded.url,
+    audioUrl: publicAudioUrl,
     audioBytes: sizeBytes,
     audioType: guessAudioType(outPath),
     durationSeconds,
@@ -126,7 +133,7 @@ export async function publishEpisode(
 
   return {
     episodeId: id,
-    audioUrl: uploaded.url,
+    audioUrl: publicAudioUrl,
     feedUrl,
     episodeCount: manifest.episodes.length,
   };

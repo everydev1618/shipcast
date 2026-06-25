@@ -22,7 +22,7 @@ const show: ShowConfig = {
 const episodes: Episode[] = [
   {
     id: 'ep-001-hello',
-    guid: 'podpush:ep-001-hello',
+    guid: 'shipcast:ep-001-hello',
     title: 'Hello & Welcome',
     description: 'The first <one>.',
     audioUrl: 'https://cdn.example.com/shows/x/episodes/ep-001-hello.m4a',
@@ -34,7 +34,7 @@ const episodes: Episode[] = [
   },
   {
     id: 'ep-002-deep-dive',
-    guid: 'podpush:ep-002-deep-dive',
+    guid: 'shipcast:ep-002-deep-dive',
     title: 'Deep Dive',
     description: 'The second.',
     audioUrl: 'https://cdn.example.com/shows/x/episodes/ep-002-deep-dive.m4a',
@@ -124,7 +124,7 @@ describe('buildPodcastRss', () => {
   });
 
   it('renders a non-permalink guid and an RFC-822 pubDate per item', () => {
-    expect(xml).toContain('<guid isPermaLink="false">podpush:ep-001-hello</guid>');
+    expect(xml).toContain('<guid isPermaLink="false">shipcast:ep-001-hello</guid>');
     expect(xml).toContain('<pubDate>Mon, 01 Jun 2026 09:00:00 GMT</pubDate>');
   });
 

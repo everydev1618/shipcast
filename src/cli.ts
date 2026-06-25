@@ -8,8 +8,9 @@ import { loadR2ConfigFromEnv } from './r2.ts';
 import { transcodeToM4a } from './audio.ts';
 import { publishEpisode, r2Storage, MANIFEST_KEY, type Storage } from './publish.ts';
 import { formatItunesDuration } from './rss.ts';
+import { buildStatsUrl } from './analytics.ts';
 
-const CONFIG_PATH = path.resolve('podpush.json');
+const CONFIG_PATH = path.resolve('shipcast.json');
 
 function loadEnv(): void {
   for (const file of ['.env', '.env.local']) {
@@ -48,7 +49,7 @@ function parseArgs(argv: string[]): Flags {
 
 function loadShowConfig() {
   if (!existsSync(CONFIG_PATH)) {
-    throw new Error(`No podpush.json found in ${process.cwd()}. Run "podpush init" first.`);
+    throw new Error(`No shipcast.json found in ${process.cwd()}. Run "shipcast init" first.`);
   }
   const raw = readFileSync(CONFIG_PATH, 'utf8');
   return ShowConfigSchema.parse(JSON.parse(raw));
@@ -68,18 +69,18 @@ const TEMPLATE = {
 
 async function cmdInit(): Promise<void> {
   if (existsSync(CONFIG_PATH)) {
-    console.log('podpush.json already exists — leaving it untouched.');
+    console.log('shipcast.json already exists — leaving it untouched.');
     return;
   }
   await writeFile(CONFIG_PATH, JSON.stringify(TEMPLATE, null, 2) + '\n');
   console.log(`Wrote ${CONFIG_PATH}`);
   console.log('Edit it with your show details, set R2_* env vars, then:');
-  console.log('  podpush publish episode.mp3 --title "Episode 1"');
+  console.log('  shipcast publish episode.mp3 --title "Episode 1"');
 }
 
 async function cmdPublish(flags: Flags): Promise<void> {
   const audioPath = (flags._ as string[])[1];
-  if (!audioPath) throw new Error('Usage: podpush publish <audio-file> --title "..."');
+  if (!audioPath) throw new Error('Usage: shipcast publish <audio-file> --title "..."');
   if (!existsSync(audioPath)) throw new Error(`Audio file not found: ${audioPath}`);
   const title = flags.title;
   if (typeof title !== 'string') throw new Error('--title is required');
@@ -87,7 +88,7 @@ async function cmdPublish(flags: Flags): Promise<void> {
   const show = loadShowConfig();
   const cfg = loadR2ConfigFromEnv();
   const storage = r2Storage(cfg);
-  const workDir = await mkdtemp(path.join(tmpdir(), 'podpush-'));
+  const workDir = await mkdtemp(path.join(tmpdir(), 'shipcast-'));
 
   console.log(`Transcoding ${path.basename(audioPath)}…`);
   const result = await publishEpisode(
@@ -129,6 +130,39 @@ async function cmdLs(): Promise<void> {
   }
 }
 
+async function cmdStats(): Promise<void> {
+  const show = loadShowConfig();
+  if (!show.analyticsBaseUrl) {
+    throw new Error(
+      'No analyticsBaseUrl in shipcast.json. Deploy the worker (see worker/wrangler.toml) and set it first.',
+    );
+  }
+  const token = process.env.SHIPCAST_STATS_TOKEN;
+  if (!token) throw new Error('Set SHIPCAST_STATS_TOKEN (matches the worker secret).');
+
+  const res = await fetch(buildStatsUrl(show.analyticsBaseUrl, token));
+  if (!res.ok) throw new Error(`Stats request failed: ${res.status} ${res.statusText}`);
+  const data = (await res.json()) as {
+    total: number;
+    episodes: { episodeId: string; downloads: number }[];
+  };
+
+  // Map ids to titles when the manifest is reachable; fall back to the id.
+  const titles = new Map<string, string>();
+  try {
+    const raw = await r2Storage(loadR2ConfigFromEnv()).getString(MANIFEST_KEY);
+    if (raw) for (const ep of parseManifest(raw).episodes) titles.set(ep.id, ep.title);
+  } catch {
+    /* stats work even without R2 access */
+  }
+
+  console.log(`${show.title} — ${data.total} download(s)\n`);
+  for (const row of data.episodes) {
+    const count = String(row.downloads).padStart(7);
+    console.log(`  ${count}  ${titles.get(row.episodeId) ?? row.episodeId}`);
+  }
+}
+
 async function main(): Promise<void> {
   loadEnv();
   const flags = parseArgs(process.argv.slice(2));
@@ -140,12 +174,15 @@ async function main(): Promise<void> {
       return cmdPublish(flags);
     case 'ls':
       return cmdLs();
+    case 'stats':
+      return cmdStats();
     default:
-      console.log('podpush — push podcast episodes to your own R2-backed RSS feed\n');
+      console.log('shipcast — push podcast episodes to your own R2-backed RSS feed\n');
       console.log('Commands:');
-      console.log('  init                      scaffold podpush.json');
+      console.log('  init                      scaffold shipcast.json');
       console.log('  publish <file> --title T  transcode + upload an episode, rebuild the feed');
       console.log('  ls                        list published episodes');
+      console.log('  stats                     show download counts (needs the analytics worker)');
       if (cmd) process.exitCode = 1;
   }
 }

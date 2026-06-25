@@ -94,6 +94,21 @@ describe('publishEpisode', () => {
     expect(manifest.episodes).toHaveLength(2);
   });
 
+  it('routes enclosures through the analytics base when configured', async () => {
+    const storage = memStorage();
+    const analyticShow = { ...show, analyticsBaseUrl: 'https://dl.example.com' };
+    const result = await publishEpisode(
+      { storage, show: analyticShow, transcode: fakeTranscode, workDir: '/tmp' },
+      baseInput,
+    );
+
+    // Listener-facing URL points at the worker, not raw R2…
+    expect(result.audioUrl).toBe('https://dl.example.com/d/hello-welcome.m4a');
+    expect(storage.objects.get(FEED_KEY)!).toContain('https://dl.example.com/d/hello-welcome.m4a');
+    // …but the bytes still land in R2.
+    expect(storage.objects.has('audio/hello-welcome.m4a')).toBe(true);
+  });
+
   it('uses the local show config, not a stale copy from the remote manifest', async () => {
     const storage = memStorage();
     await publishEpisode({ storage, show, transcode: fakeTranscode, workDir: '/tmp' }, baseInput);

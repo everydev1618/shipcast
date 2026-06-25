@@ -33,6 +33,8 @@ export const ShowConfigSchema = z.object({
   imageUrl: z.string().url(),
   explicit: z.boolean().default(false),
   copyright: z.string().optional(),
+  /** Optional analytics Worker base URL; when set, enclosures route through it. */
+  analyticsBaseUrl: z.string().url().optional(),
 });
 
 export const EpisodeSchema = z.object({

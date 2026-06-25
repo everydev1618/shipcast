@@ -1,0 +1,23 @@
+# shipcast download-counting Worker.
+#
+# Deploy:
+#   1. wrangler d1 create shipcast-downloads      # copy the database_id below
+#   2. wrangler d1 execute shipcast-downloads --remote --file worker/schema.sql
+#   3. wrangler secret put IP_SALT                 # any random string
+#   4. wrangler secret put STATS_TOKEN             # a secret for `shipcast stats`
+#   5. wrangler deploy
+#
+# Set `analyticsBaseUrl` in shipcast.json to this Worker's URL (or a custom
+# domain routed to it) so feed enclosures are counted.
+name = "shipcast-downloads"
+main = "worker.ts"
+compatibility_date = "2026-01-01"
+
+# The public base URL of the R2 bucket your audio lives in.
+[vars]
+R2_PUBLIC_URL = "https://pub-<hash>.r2.dev"
+
+[[d1_databases]]
+binding = "DB"
+database_name = "shipcast-downloads"
+database_id = "<run: wrangler d1 create shipcast-downloads>"
