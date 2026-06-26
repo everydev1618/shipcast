@@ -23,6 +23,11 @@ export function mintEpisodeId(title: string, existingIds: string[]): string {
 }
 
 export const ShowConfigSchema = z.object({
+  /** Optional show slug; when set, all R2 keys are namespaced under shows/<slug>/. */
+  slug: z
+    .string()
+    .regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, 'slug must be lowercase letters, digits, and hyphens')
+    .optional(),
   title: z.string().min(1),
   description: z.string().default(''),
   author: z.string().min(1),

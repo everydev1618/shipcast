@@ -1,5 +1,7 @@
 /** Show-level metadata. Lives in shipcast.json and drives the RSS <channel>. */
 export interface ShowConfig {
+  /** Optional show slug; when set, all R2 keys are namespaced under shows/<slug>/. */
+  slug?: string;
   title: string;
   description: string;
   author: string;

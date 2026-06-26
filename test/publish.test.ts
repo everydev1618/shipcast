@@ -94,6 +94,29 @@ describe('publishEpisode', () => {
     expect(manifest.episodes).toHaveLength(2);
   });
 
+  it('namespaces all keys and the enclosure under shows/<slug>/ when slug is set', async () => {
+    const storage = memStorage();
+    const slugShow = {
+      ...show,
+      slug: 'my-show',
+      analyticsBaseUrl: 'https://dl.example.com',
+    };
+    const result = await publishEpisode(
+      { storage, show: slugShow, transcode: fakeTranscode, workDir: '/tmp' },
+      baseInput,
+    );
+
+    // Objects live under the show prefix.
+    expect(storage.objects.has('shows/my-show/audio/hello-welcome.m4a')).toBe(true);
+    expect(storage.objects.has('shows/my-show/manifest.json')).toBe(true);
+    expect(storage.objects.has('shows/my-show/feed.xml')).toBe(true);
+    // No root-level objects leaked.
+    expect(storage.objects.has(MANIFEST_KEY)).toBe(false);
+    // Feed self-link + enclosure are show-scoped.
+    expect(result.feedUrl).toBe('https://pub.example.com/shows/my-show/feed.xml');
+    expect(result.audioUrl).toBe('https://dl.example.com/d/my-show/hello-welcome.m4a');
+  });
+
   it('routes enclosures through the analytics base when configured', async () => {
     const storage = memStorage();
     const analyticShow = { ...show, analyticsBaseUrl: 'https://dl.example.com' };

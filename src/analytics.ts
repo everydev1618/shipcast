@@ -3,15 +3,29 @@
  * Kept dependency-free so both a Node test and the Workers runtime can use them.
  */
 
-/** The enclosure URL that routes a download through the analytics Worker. */
-export function enclosureUrl(analyticsBase: string, episodeId: string): string {
-  return `${analyticsBase.replace(/\/+$/, '')}/d/${episodeId}.m4a`;
+/**
+ * The enclosure URL that routes a download through the analytics Worker.
+ * When `slug` is given, the path is namespaced by show: /d/<slug>/<id>.m4a.
+ */
+export function enclosureUrl(
+  analyticsBase: string,
+  episodeId: string,
+  slug?: string,
+): string {
+  const base = analyticsBase.replace(/\/+$/, '');
+  return slug ? `${base}/d/${slug}/${episodeId}.m4a` : `${base}/d/${episodeId}.m4a`;
 }
 
-/** Extract the episode id from a `/d/<id>.m4a` request path, or null. */
-export function parseEpisodeId(pathname: string): string | null {
-  const m = /^\/d\/(.+)\.m4a$/.exec(pathname);
-  return m && m[1] ? m[1] : null;
+/**
+ * Parse a `/d/<id>.m4a` or `/d/<show>/<id>.m4a` request path.
+ * Returns `{ show, id }` (show is null when absent), or null if not a download.
+ */
+export function parseDownloadPath(
+  pathname: string,
+): { show: string | null; id: string } | null {
+  const m = /^\/d\/(?:([^/]+)\/)?([^/]+)\.m4a$/.exec(pathname);
+  if (!m || !m[2]) return null;
+  return { show: m[1] ?? null, id: m[2] };
 }
 
 const BOT_PATTERN =
@@ -42,7 +56,8 @@ export function hashIp(ip: string, salt: string): string {
   return (h >>> 0).toString(16).padStart(8, '0');
 }
 
-/** URL the CLI hits to read aggregated stats from the Worker. */
-export function buildStatsUrl(analyticsBase: string, token: string): string {
-  return `${analyticsBase.replace(/\/+$/, '')}/stats?token=${encodeURIComponent(token)}`;
+/** URL the CLI hits to read aggregated stats from the Worker, optionally per show. */
+export function buildStatsUrl(analyticsBase: string, token: string, slug?: string): string {
+  const base = `${analyticsBase.replace(/\/+$/, '')}/stats?token=${encodeURIComponent(token)}`;
+  return slug ? `${base}&show=${encodeURIComponent(slug)}` : base;
 }

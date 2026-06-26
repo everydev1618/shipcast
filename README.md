@@ -55,6 +55,23 @@ shipcast stats                                  # download counts (needs the wor
 Install the command globally with `npm install -g .` (or `npm link` while
 developing), or just run it with `npx shipcast`.
 
+## Multiple shows
+
+shipcast hosts many shows in one R2 bucket. Add a `slug` to a show's
+`shipcast.json` and all of its objects are namespaced under `shows/<slug>/`:
+
+```
+shows/<slug>/manifest.json
+shows/<slug>/feed.xml
+shows/<slug>/audio/<id>.m4a
+→ feed:  <R2_PUBLIC_URL>/shows/<slug>/feed.xml
+```
+
+The simplest layout is **one folder per show** — each directory has its own
+`shipcast.json` (with a distinct `slug`); `cd` into it and run `shipcast publish`.
+They can share one `.env.local`/bucket. Omit `slug` for a single-show bucket
+(objects live at the root). Analytics and `shipcast stats` are scoped per show.
+
 ## Download analytics (optional)
 
 A plain R2 bucket can't tell you how many people downloaded an episode. The

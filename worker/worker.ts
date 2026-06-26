@@ -9,10 +9,10 @@
  * This is IAB-*informed* (unique-per-day dedup, bot filtering), not certified.
  */
 import {
-  parseEpisodeId,
   isBot,
   dayKeyUTC,
   hashIp,
+  parseDownloadPath,
 } from '../src/analytics.ts';
 
 // Minimal structural types so the Worker compiles without @cloudflare/workers-types.
@@ -39,9 +39,11 @@ export interface Env {
 }
 
 const INSERT_SQL =
-  'INSERT OR IGNORE INTO downloads (episode_id, day, ip_hash) VALUES (?, ?, ?)';
-const STATS_SQL =
+  'INSERT OR IGNORE INTO downloads (show, episode_id, day, ip_hash) VALUES (?, ?, ?, ?)';
+const STATS_ALL_SQL =
   'SELECT episode_id, COUNT(*) AS downloads FROM downloads GROUP BY episode_id ORDER BY downloads DESC';
+const STATS_SHOW_SQL =
+  'SELECT episode_id, COUNT(*) AS downloads FROM downloads WHERE show = ? GROUP BY episode_id ORDER BY downloads DESC';
 
 function json(body: unknown, status = 200): Response {
   return new Response(JSON.stringify(body), {
@@ -61,28 +63,35 @@ export async function handleRequest(
     if (url.searchParams.get('token') !== env.STATS_TOKEN) {
       return json({ error: 'unauthorized' }, 401);
     }
-    const { results } = await env.DB.prepare(STATS_SQL).all();
+    const show = url.searchParams.get('show');
+    const stmt =
+      show !== null
+        ? env.DB.prepare(STATS_SHOW_SQL).bind(show)
+        : env.DB.prepare(STATS_ALL_SQL);
+    const { results } = await stmt.all();
     const rows = results as { episode_id: string; downloads: number }[];
     const episodes = rows.map((r) => ({ episodeId: r.episode_id, downloads: r.downloads }));
     const total = episodes.reduce((sum, e) => sum + e.downloads, 0);
     return json({ total, episodes });
   }
 
-  const id = parseEpisodeId(url.pathname);
-  if (!id) return new Response('Not found', { status: 404 });
+  const parsed = parseDownloadPath(url.pathname);
+  if (!parsed) return new Response('Not found', { status: 404 });
+  const { show, id } = parsed;
 
   const ua = request.headers.get('user-agent');
   if (!isBot(ua)) {
     const ip = request.headers.get('cf-connecting-ip') ?? '0.0.0.0';
     const ipHash = hashIp(ip, env.IP_SALT || 'shipcast');
     try {
-      await env.DB.prepare(INSERT_SQL).bind(id, dayKeyUTC(nowIso), ipHash).run();
+      await env.DB.prepare(INSERT_SQL).bind(show ?? '', id, dayKeyUTC(nowIso), ipHash).run();
     } catch {
       // Counting must never break playback — swallow and still redirect.
     }
   }
 
-  const dest = `${env.R2_PUBLIC_URL.replace(/\/+$/, '')}/audio/${id}.m4a`;
+  const prefix = show ? `shows/${show}/` : '';
+  const dest = `${env.R2_PUBLIC_URL.replace(/\/+$/, '')}/${prefix}audio/${id}.m4a`;
   return new Response(null, { status: 302, headers: { location: dest } });
 }
 

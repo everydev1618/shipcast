@@ -6,7 +6,7 @@ import path from 'node:path';
 import { ShowConfigSchema, parseManifest } from './manifest.ts';
 import { loadR2ConfigFromEnv } from './r2.ts';
 import { transcodeToM4a } from './audio.ts';
-import { publishEpisode, r2Storage, MANIFEST_KEY, type Storage } from './publish.ts';
+import { publishEpisode, r2Storage, showKeys, type Storage } from './publish.ts';
 import { formatItunesDuration } from './rss.ts';
 import { buildStatsUrl } from './analytics.ts';
 
@@ -112,9 +112,10 @@ async function cmdPublish(flags: Flags): Promise<void> {
 }
 
 async function cmdLs(): Promise<void> {
+  const show = loadShowConfig();
   const cfg = loadR2ConfigFromEnv();
   const storage: Storage = r2Storage(cfg);
-  const raw = await storage.getString(MANIFEST_KEY);
+  const raw = await storage.getString(showKeys(show.slug).manifestKey);
   if (!raw) {
     console.log('No episodes published yet.');
     return;
@@ -140,7 +141,7 @@ async function cmdStats(): Promise<void> {
   const token = process.env.SHIPCAST_STATS_TOKEN;
   if (!token) throw new Error('Set SHIPCAST_STATS_TOKEN (matches the worker secret).');
 
-  const res = await fetch(buildStatsUrl(show.analyticsBaseUrl, token));
+  const res = await fetch(buildStatsUrl(show.analyticsBaseUrl, token, show.slug));
   if (!res.ok) throw new Error(`Stats request failed: ${res.status} ${res.statusText}`);
   const data = (await res.json()) as {
     total: number;
@@ -150,7 +151,7 @@ async function cmdStats(): Promise<void> {
   // Map ids to titles when the manifest is reachable; fall back to the id.
   const titles = new Map<string, string>();
   try {
-    const raw = await r2Storage(loadR2ConfigFromEnv()).getString(MANIFEST_KEY);
+    const raw = await r2Storage(loadR2ConfigFromEnv()).getString(showKeys(show.slug).manifestKey);
     if (raw) for (const ep of parseManifest(raw).episodes) titles.set(ep.id, ep.title);
   } catch {
     /* stats work even without R2 access */

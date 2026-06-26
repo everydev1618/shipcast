@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   enclosureUrl,
-  parseEpisodeId,
+  parseDownloadPath,
   isBot,
   dayKeyUTC,
   hashIp,
@@ -19,16 +19,30 @@ describe('enclosureUrl', () => {
       'https://dl.example.com/d/x.m4a',
     );
   });
+  it('namespaces by show slug when given', () => {
+    expect(enclosureUrl('https://dl.example.com', 'hello', 'my-show')).toBe(
+      'https://dl.example.com/d/my-show/hello.m4a',
+    );
+  });
 });
 
-describe('parseEpisodeId', () => {
-  it('extracts the id from a /d/<id>.m4a path', () => {
-    expect(parseEpisodeId('/d/hello-welcome.m4a')).toBe('hello-welcome');
+describe('parseDownloadPath', () => {
+  it('extracts the id from a /d/<id>.m4a path (no show)', () => {
+    expect(parseDownloadPath('/d/hello-welcome.m4a')).toEqual({
+      show: null,
+      id: 'hello-welcome',
+    });
+  });
+  it('extracts show + id from a /d/<show>/<id>.m4a path', () => {
+    expect(parseDownloadPath('/d/my-show/hello-welcome.m4a')).toEqual({
+      show: 'my-show',
+      id: 'hello-welcome',
+    });
   });
   it('returns null for non-download paths', () => {
-    expect(parseEpisodeId('/stats')).toBeNull();
-    expect(parseEpisodeId('/d/')).toBeNull();
-    expect(parseEpisodeId('/d/x.mp3')).toBeNull();
+    expect(parseDownloadPath('/stats')).toBeNull();
+    expect(parseDownloadPath('/d/')).toBeNull();
+    expect(parseDownloadPath('/d/x.mp3')).toBeNull();
   });
 });
 
@@ -68,6 +82,11 @@ describe('buildStatsUrl', () => {
   it('appends the token as a query param', () => {
     expect(buildStatsUrl('https://dl.example.com', 'tok')).toBe(
       'https://dl.example.com/stats?token=tok',
+    );
+  });
+  it('adds a show filter when given a slug', () => {
+    expect(buildStatsUrl('https://dl.example.com', 'tok', 'my-show')).toBe(
+      'https://dl.example.com/stats?token=tok&show=my-show',
     );
   });
 });
