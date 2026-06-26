@@ -7,11 +7,24 @@
   "author": "Etienne de Bruin",
   "repository": "github:everydev1618/shipcast",
   "homepage": "https://github.com/everydev1618/shipcast",
-  "keywords": ["podcast", "rss", "cloudflare", "r2", "cli", "publishing", "ffmpeg"],
+  "keywords": [
+    "podcast",
+    "rss",
+    "cloudflare",
+    "r2",
+    "cli",
+    "publishing",
+    "ffmpeg"
+  ],
   "bin": {
     "shipcast": "./src/cli.ts"
   },
-  "files": ["src", "worker", "README.md", "LICENSE"],
+  "files": [
+    "src",
+    "worker",
+    "README.md",
+    "LICENSE"
+  ],
   "scripts": {
     "shipcast": "tsx src/cli.ts",
     "test": "vitest run",
@@ -33,6 +46,7 @@
     "eslint": "^9",
     "typescript": "^5",
     "typescript-eslint": "^8",
-    "vitest": "^4.1.6"
+    "vitest": "^4.1.6",
+    "wrangler": "^4.105.0"
   }
 }
